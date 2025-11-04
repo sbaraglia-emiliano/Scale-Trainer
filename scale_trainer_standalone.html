@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scale Trainer</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; background: linear-gradient(to bottom, #cce7ff, #99d1ff); display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; }
+  h1 { font-size: 2em; margin-bottom: 1rem; }
+  .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 100%; }
+  select, input, button { padding: 8px 12px; margin: 5px 0; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; }
+  button { cursor: pointer; }
+  .start-btn { background-color: #4CAF50; color: white; border: none; }
+  .stop-btn { background-color: #f44336; color: white; border: none; }
+  .yellow-btn { background-color: #ffeb3b; border: none; }
+  .feedback { margin-top: 10px; font-weight: bold; }
+  .grado { font-size: 3em; margin: 10px 0; }
+  .scala { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .nota { background: #99d1ff; padding: 5px 10px; border-radius: 5px; }
+  .stats { margin: 5px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🎵 Allenamento Scale Maggiori</h1>
+<div>
+<label>Tonalità:</label>
+<select id="tonalita"></select>
+</div>
+<div class="stats" id="punteggio">Punteggio: 0 / 0</div>
+<div class="stats" id="tempo">⏱️ Tempo risposta: 0s | ⏳ Media: 0s</div>
+<div class="grado" id="grado"></div>
+<input type="text" id="inputNota" placeholder="Scrivi la nota e premi Invio...">
+<div class="feedback" id="feedback"></div>
+<button id="startStop" class="start-btn">Start</button>
+<button id="mostraScala" class="yellow-btn">Mostra scala</button>
+<div class="scala" id="scalaContainer" style="display:none;"></div>
+</div>
+<script>
+const MAJOR_SCALES = {
+  'Do': ['DO','RE','MI','FA','SOL','LA','SI'],
+  'Sol': ['SOL','LA','SI','DO','RE','MI','FA#'],
+  'Re': ['RE','MI','FA#','SOL','LA','SI','DO#'],
+  'La': ['LA','SI','DO#','RE','MI','FA#','SOL#'],
+  'Mi': ['MI','FA#','SOL#','LA','SI','DO#','RE#'],
+  'Si': ['SI','DO#','RE#','MI','FA#','SOL#','LA#'],
+  'Fa#': ['FA#','SOL#','LA#','SI','DO#','RE#','MI#'],
+  'Reb': ['REb','MIb','FA','SOLb','LAb','SIb','DO'],
+  'Lab': ['LAb','SIb','DO','REb','MIb','FA','SOL'],
+  'Mib': ['MIb','FA','SOL','LAb','SIb','DO','RE'],
+  'Sib': ['SIb','DO','RE','MIb','FA','SOL','LA'],
+  'Fa': ['FA','SOL','LA','SIb','DO','RE','MI']
+};
+
+let tonalita = 'Do';
+let grado = null;
+let corrette = 0;
+let totali = 0;
+let inCorso = false;
+let startTime = null;
+let tempoRisposta = 0;
+let mediaTempo = 0;
+
+const tonalitaSelect = document.getElementById('tonalita');
+const gradoDiv = document.getElementById('grado');
+const inputNota = document.getElementById('inputNota');
+const feedbackDiv = document.getElementById('feedback');
+const punteggioDiv = document.getElementById('punteggio');
+const tempoDiv = document.getElementById('tempo');
+const startStopBtn = document.getElementById('startStop');
+const mostraScalaBtn = document.getElementById('mostraScala');
+const scalaContainer = document.getElementById('scalaContainer');
+
+Object.keys(MAJOR_SCALES).forEach(t => {
+  const opt = document.createElement('option');
+  opt.value = t;
+  opt.textContent = t;
+  tonalitaSelect.appendChild(opt);
+});
+
+tonalitaSelect.addEventListener('change', () => { tonalita = tonalitaSelect.value; });
+
+function nuovaDomanda(){
+  grado = Math.floor(Math.random()*7)+1;
+  gradoDiv.textContent = grado;
+  inputNota.value = '';
+  feedbackDiv.textContent = '';
+  startTime = Date.now();
+}
+
+function aggiornaPunteggio(){
+  punteggioDiv.textContent = `Punteggio: ${corrette} / ${totali}`;
+  tempoDiv.textContent = `⏱️ Tempo risposta: ${tempoRisposta}s | ⏳ Media: ${mediaTempo}s`;
+}
+
+function controllaRisposta(){
+  if(!grado || !inCorso) return;
+  const tempo = ((Date.now()-startTime)/1000).toFixed(2);
+  tempoRisposta = tempo;
+  totali++;
+  mediaTempo = ((mediaTempo*(totali-1)+tempo)/totali).toFixed(2);
+
+  const notaCorretta = MAJOR_SCALES[tonalita][grado-1];
+  const risposta = inputNota.value.trim().toUpperCase();
+  if(risposta === notaCorretta){
+    corrette++;
+    feedbackDiv.textContent = `✅ Corretto! (${notaCorretta})`;
+  } else {
+    feedbackDiv.textContent = `❌ Sbagliato. Era ${notaCorretta}`;
+  }
+  aggiornaPunteggio();
+  setTimeout(()=>{ if(inCorso) nuovaDomanda(); }, 1000);
+}
+
+inputNota.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && inCorso) controllaRisposta(); });
+
+startStopBtn.addEventListener('click', ()=>{
+  if(inCorso){
+    inCorso=false;
+    grado=null;
+    gradoDiv.textContent='';
+    feedbackDiv.textContent='';
+    tempoRisposta=0; mediaTempo=0; corrette=0; totali=0;
+    startStopBtn.textContent='Start'; startStopBtn.className='start-btn';
+  } else {
+    inCorso=true;
+    startStopBtn.textContent='Stop'; startStopBtn.className='stop-btn';
+    nuovaDomanda();
+  }
+});
+
+mostraScalaBtn.addEventListener('click', ()=>{
+  if(scalaContainer.style.display==='none'){
+    scalaContainer.innerHTML='';
+    MAJOR_SCALES[tonalita].forEach((nota,i)=>{
+      const div=document.createElement('div');
+      div.className='nota'; div.textContent=`${i+1}: ${nota}`;
+      scalaContainer.appendChild(div);
+    });
+    scalaContainer.style.display='flex';
+    mostraScalaBtn.textContent='Nascondi scala';
+  } else {
+    scalaContainer.style.display='none';
+    mostraScalaBtn.textContent='Mostra scala';
+  }
+});
+</script>
+</body>
+</html>
