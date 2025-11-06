@@ -1,149 +1,764 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scale Trainer</title>
-<style>
-  body { margin: 0; font-family: Arial, sans-serif; background: linear-gradient(to bottom, #cce7ff, #99d1ff); display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; }
-  h1 { font-size: 2em; margin-bottom: 1rem; }
-  .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 100%; }
-  select, input, button { padding: 8px 12px; margin: 5px 0; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; }
-  button { cursor: pointer; }
-  .start-btn { background-color: #4CAF50; color: white; border: none; }
-  .stop-btn { background-color: #f44336; color: white; border: none; }
-  .yellow-btn { background-color: #ffeb3b; border: none; }
-  .feedback { margin-top: 10px; font-weight: bold; }
-  .grado { font-size: 3em; margin: 10px 0; }
-  .scala { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-  .nota { background: #99d1ff; padding: 5px 10px; border-radius: 5px; }
-  .stats { margin: 5px 0; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allenamento Gradi della Scala</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Stile di base per il body e la tipografia */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+
+        /* Stili per la tastiera */
+        .piano-keys {
+            position: relative;
+            display: flex;
+            height: 200px; 
+            margin: 0 auto;
+            max-width: 900px;
+            border-bottom: 5px solid #000;
+        }
+
+        /* I tasti bianchi sono flessibili e occupano 1/14 della larghezza del container */
+        .white-key {
+            width: calc(100% / 14); 
+            height: 100%;
+            border: 1px solid #1f2937;
+            border-right: none;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 5px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .white-key:last-child { border-right: 1px solid #1f2937; }
+
+        .black-key {
+            position: absolute;
+            width: 4.5%;
+            height: 60%; 
+            background-color: #000;
+            border: 1px solid #000;
+            z-index: 10;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+        
+        /* Posizionamento del numero del grado sul tasto nero (Correzione) */
+        .black-key > span {
+            position: absolute;
+            bottom: 5px; 
+            color: #c9d1d9; 
+            font-size: 0.75rem;
+            font-weight: bold;
+            width: 100%;
+            text-align: center;
+        }
+        .white-key > span {
+            font-size: 0.75rem;
+        }
+
+        /* Colori definiti */
+
+        /* White Keys (Tasti Bianchi) */
+        /* Tasti bianchi fuori scala: Grigio molto chiaro, con brightness ridotta (sbiadito) */
+        .white-out-scale { 
+            background-color: #e0e0e0; 
+            filter: brightness(0.6); 
+            color: #1f2937; 
+        } 
+        /* Tasti bianchi in scala: Bianco */
+        .white-in-scale { 
+            background-color: #ffffff; 
+            color: #1f2937; 
+        }
+
+        /* Black Keys (Tasti Neri) */
+        /* Tasti neri FUORI scala: Grigio scuro con brightness ridotta (sbiadito, leggermente diverso dal bianco sbiadito) */
+        .black-out-scale { 
+            background-color: #2c3e50; /* Base grigio scuro */
+            filter: brightness(0.6); /* Sbiadito */
+        } 
+        /* Tasti neri IN scala: Nero Puro */
+        .black-in-scale { 
+            background-color: #000000;
+        } 
+
+        /* STATO ATTIVO (MOLTO EVIDENTE - CIANO) */
+        .key-active {
+            z-index: 20;
+            transform: scale(1.03); 
+            box-shadow: 0 0 25px 5px rgba(6, 182, 212, 0.8), 0 0 15px 5px rgba(255, 255, 255, 0.5) inset; 
+            border-color: #06b6d4 !important; 
+            filter: none !important; /* Rimuovi filtri brightness quando il tasto è attivo */
+        }
+        
+        /* Colori specifici per contrasto quando attivi */
+        .white-key.key-active {
+            background-color: #f0fdfa !important; 
+            color: #0d1117 !important; 
+        }
+
+        .black-key.key-active {
+            background-color: #06b6d4 !important; 
+            color: #ffffff !important; 
+        }
+
+        /* REGOLA AGGIORNATA: Massima visibilità per i numeri dei gradi sui tasti attivi */
+        .key-active span {
+            /* Colore chiaro e brillante per risaltare su entrambi i colori di sfondo attivi */
+            color: #fcd34d !important; /* Giallo acceso */
+            font-size: 1.3rem !important; /* Aumentato per maggiore visibilità */
+            font-weight: 900 !important; /* Reso extra-bold */
+            text-shadow: 0 0 8px #000000; /* Ombra per staccarsi dal tasto bianco */
+        }
+
+
+        /* Stili per l'indicatore circolare del timer */
+        .timer-indicator {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #3b82f6 0%,
+                #3b82f6 var(--progress),
+                #1f2937 var(--progress),
+                #1f2937 100%
+            );
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+        .timer-text {
+            color: #ffffff;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        .degree-text {
+            color: #fcd34d;
+            font-size: 4rem;
+            font-weight: 900;
+            /* AGGIORNATO: Ombra per maggiore visibilità */
+            text-shadow: 0 0 15px #fcd34d, 0 0 5px #000; 
+        }
+        
+        /* Responsività per la tastiera */
+        @media (max-width: 640px) {
+            .piano-keys { height: 150px; }
+            .white-key { font-size: 0.75rem; }
+            .timer-indicator { width: 100px; height: 100px; }
+            .timer-text { font-size: 1.5rem; }
+            .degree-text { font-size: 2.5rem; }
+        }
+    </style>
+
+    
+
+<script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variabili globali fornite dall'ambiente Canvas
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        /**
+         * Inizializza Firebase e l'autenticazione.
+         * Chiama window.setupApp() al termine.
+         */
+        window.initializeFirebase = async () => {
+            let db, auth;
+            
+            if (Object.keys(firebaseConfig).length === 0) {
+                console.error("Firebase config is missing or invalid. Proceeding without Firebase.");
+            } else {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    setLogLevel('Debug');
+                    
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    window.db = db;
+                    window.auth = auth;
+                    window.userId = auth.currentUser?.uid || crypto.randomUUID();
+                    console.log(`User ID: ${window.userId}`);
+
+                } catch (error) {
+                    console.error("Firebase initialization or sign-in failed:", error);
+                }
+            }
+            
+            if (typeof window.setupApp === 'function') {
+                window.setupApp();
+            }
+        };
+    </script>
 </head>
-<body>
-<div class="container">
-<h1>🎵 Allenamento Scale Maggiori</h1>
-<div>
-<label>Tonalità:</label>
-<select id="tonalita"></select>
+<body class="min-h-screen p-4 sm:p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-center mb-6 text-blue-400">
+            Allenamento Gradi della Scala
+        </h1>
+
+        
+
+<div id="controls-panel" class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+
+            
+
+<div class="space-y-4">
+                <div>
+                    <label for="key-select" class="block text-sm font-medium mb-1 text-gray-300">Seleziona Tonalità (Maggiore)</label>
+                    <select id="key-select" class="w-full p-2 rounded-md bg-gray-700 border border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500">
+                        
+
+</select>
+                </div>
+                <div>
+                    <label for="timer-duration" class="block text-sm font-medium mb-1 text-gray-300">Durata Timer (secondi)</label>
+                    <input type="number" id="timer-duration" value="5" min="1" max="60" class="w-full p-2 rounded-md bg-gray-700 border border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            
+
+<div class="flex flex-col items-center justify-center">
+                
+
+<div id="timer-indicator-container" class="timer-indicator" style="--progress: 0%;">
+                    <div id="degree-display" class="degree-text">?</div>
+                    
+
+<div id="note-display" class="timer-text h-10 flex items-center justify-center"></div>
+                </div>
+            </div>
+
+            
+
+<div class="space-y-4">
+                <button id="start-stop-btn" class="w-full py-3 rounded-xl font-bold text-lg transition duration-200 bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-900/50">
+                    Avvia Allenamento
+                </button>
+                <button id="reset-btn" class="w-full py-3 rounded-xl font-bold text-lg transition duration-200 bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-900/50" disabled>
+                    Reset Ciclo
+                </button>
+            </div>
+        </div>
+
+        
+
+<div class="p-4 rounded-xl shadow-2xl bg-gray-700/50">
+            <!-- TITOLO AGGIORNATO DINAMICAMENTE -->
+            <h2 id="scale-notes-display" class="text-xl font-semibold mb-3 text-center text-gray-300"></h2>
+            <div class="piano-keys" id="piano-keyboard">
+                
+
 </div>
-<div class="stats" id="punteggio">Punteggio: 0 / 0</div>
-<div class="stats" id="tempo">⏱️ Tempo risposta: 0s | ⏳ Media: 0s</div>
-<div class="grado" id="grado"></div>
-<input type="text" id="inputNota" placeholder="Scrivi la nota e premi Invio...">
-<div class="feedback" id="feedback"></div>
-<button id="startStop" class="start-btn">Start</button>
-<button id="mostraScala" class="yellow-btn">Mostra scala</button>
-<div class="scala" id="scalaContainer" style="display:none;"></div>
-</div>
+        </div>
+
+        <div id="status-message" class="text-center mt-4 text-sm text-gray-400">
+            Seleziona la tonalità e la durata, poi premi Avvia.
+        </div>
+    </div>
+
+    
+
 <script>
-const MAJOR_SCALES = {
-  'Do': ['DO','RE','MI','FA','SOL','LA','SI'],
-  'Sol': ['SOL','LA','SI','DO','RE','MI','FA#'],
-  'Re': ['RE','MI','FA#','SOL','LA','SI','DO#'],
-  'La': ['LA','SI','DO#','RE','MI','FA#','SOL#'],
-  'Mi': ['MI','FA#','SOL#','LA','SI','DO#','RE#'],
-  'Si': ['SI','DO#','RE#','MI','FA#','SOL#','LA#'],
-  'Fa#': ['FA#','SOL#','LA#','SI','DO#','RE#','MI#'],
-  'Reb': ['REb','MIb','FA','SOLb','LAb','SIb','DO'],
-  'Lab': ['LAb','SIb','DO','REb','MIb','FA','SOL'],
-  'Mib': ['MIb','FA','SOL','LAb','SIb','DO','RE'],
-  'Sib': ['SIb','DO','RE','MIb','FA','SOL','LA'],
-  'Fa': ['FA','SOL','LA','SIb','DO','RE','MI']
-};
+        // --- Definizioni di Costanti e Stato ---
 
-let tonalita = 'Do';
-let grado = null;
-let corrette = 0;
-let totali = 0;
-let inCorso = false;
-let startTime = null;
-let tempoRisposta = 0;
-let mediaTempo = 0;
+        const CHROMATIC_NOTES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        
+        // Tonalità Maggiori (nomi in inglese per la logica interna, etichette in italiano)
+        const MAJOR_KEYS = {
+            "Do Maggiore": { tonic: "C", notes: ["C", "D", "E", "F", "G", "A", "B"] },
+            "Sol Maggiore": { tonic: "G", notes: ["G", "A", "B", "C", "D", "E", "F#"] },
+            "Re Maggiore": { tonic: "D", notes: ["D", "E", "F#", "G", "A", "B", "C#"] },
+            "La Maggiore": { tonic: "A", notes: ["A", "B", "C#", "D", "E", "F#", "G#"] },
+            "Mi Maggiore": { tonic: "E", notes: ["E", "F#", "G#", "A", "B", "C#", "D#"] },
+            "Si Maggiore": { tonic: "B", notes: ["B", "C#", "D#", "E", "F#", "G#", "A#"] },
+            "Fa# Maggiore": { tonic: "F#", notes: ["F#", "G#", "A#", "B", "C#", "D#", "E#"] },
+            "Re♭ Maggiore": { tonic: "Db", notes: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"] }, 
+            "La♭ Maggiore": { tonic: "Ab", notes: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"] }, 
+            "Mi♭ Maggiore": { tonic: "Eb", notes: ["Eb", "F", "G", "Ab", "Bb", "C", "D"] }, 
+            "Si♭ Maggiore": { tonic: "Bb", notes: ["Bb", "C", "D", "Eb", "F", "G", "A"] }, 
+            "Fa Maggiore": { tonic: "F", notes: ["F", "G", "A", "Bb", "C", "D", "E"] }, 
+        };
+        
+        let state = {
+            currentKey: MAJOR_KEYS["Do Maggiore"],
+            timerDuration: 5,
+            isRunning: false,
+            timer: null,
+            timeRemaining: 0,
+            // Gradi 1-8
+            degreeQueue: [], 
+            currentDegree: null,
+            currentKeyName: "Do Maggiore" // Nome chiave italiana per display
+        };
 
-const tonalitaSelect = document.getElementById('tonalita');
-const gradoDiv = document.getElementById('grado');
-const inputNota = document.getElementById('inputNota');
-const feedbackDiv = document.getElementById('feedback');
-const punteggioDiv = document.getElementById('punteggio');
-const tempoDiv = document.getElementById('tempo');
-const startStopBtn = document.getElementById('startStop');
-const mostraScalaBtn = document.getElementById('mostraScala');
-const scalaContainer = document.getElementById('scalaContainer');
+        // KEYBOARD_NOTES contiene 24 oggetti { name: "C3", baseName: "C", octave: 3, isWhite: true, scaleDegree: null }
+        const KEYBOARD_NOTES = []; 
 
-Object.keys(MAJOR_SCALES).forEach(t => {
-  const opt = document.createElement('option');
-  opt.value = t;
-  opt.textContent = t;
-  tonalitaSelect.appendChild(opt);
-});
+        // --- Funzioni di Utilità ---
 
-tonalitaSelect.addEventListener('change', () => { tonalita = tonalitaSelect.value; });
+        // Converte un nome di nota inglese (C, F#, Ab) nel corrispondente italiano (Do, Fa#, La♭)
+        function toItalianNote(englishName) {
+            const map = {
+                "C": "Do", "C#": "Do#", "Db": "Re♭",
+                "D": "Re", "D#": "Re#", "Eb": "Mi♭",
+                "E": "Mi", "E#": "Fa", 
+                "F": "Fa", "F#": "Fa#", "Gb": "Sol♭",
+                "G": "Sol", "G#": "Sol#", "Ab": "La♭",
+                "A": "La", "A#": "La#", "Bb": "Si♭",
+                "B": "Si", "B#": "Do" 
+            };
+            // Rimuove la b se la nota è solo una bemolle e non ha alternativa in #
+            const cleanBemol = englishName.endsWith('b') ? englishName.replace('b', '♭') : englishName;
+            return map[englishName] || cleanBemol;
+        }
 
-function nuovaDomanda(){
-  grado = Math.floor(Math.random()*7)+1;
-  gradoDiv.textContent = grado;
-  inputNota.value = '';
-  feedbackDiv.textContent = '';
-  startTime = Date.now();
-}
+        // Aggiorna l'intestazione con le note della scala
+        function updateScaleDisplay() {
+            const notesEN = state.currentKey.notes;
+            const notesIT = notesEN.map(toItalianNote);
+            const scaleName = state.currentKeyName;
+            
+            document.getElementById('scale-notes-display').textContent = 
+                `${scaleName} - Scala: ${notesIT.join(', ')}`;
+        }
 
-function aggiornaPunteggio(){
-  punteggioDiv.textContent = `Punteggio: ${corrette} / ${totali}`;
-  tempoDiv.textContent = `⏱️ Tempo risposta: ${tempoRisposta}s | ⏳ Media: ${mediaTempo}s`;
-}
 
-function controllaRisposta(){
-  if(!grado || !inCorso) return;
-  const tempo = ((Date.now()-startTime)/1000).toFixed(2);
-  tempoRisposta = tempo;
-  totali++;
-  mediaTempo = ((mediaTempo*(totali-1)+tempo)/totali).toFixed(2);
+        // Normalizza i nomi delle note (es. Db -> C#, Eb -> D#)
+        function normalizeNote(noteName) {
+            // Usa i diesis come standard per l'identificazione (tranne C, F)
+            const sharps = { "Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#", "E#": "F", "B#": "C" };
+            return sharps[noteName] || noteName;
+        }
 
-  const notaCorretta = MAJOR_SCALES[tonalita][grado-1];
-  const risposta = inputNota.value.trim().toUpperCase();
-  if(risposta === notaCorretta){
-    corrette++;
-    feedbackDiv.textContent = `✅ Corretto! (${notaCorretta})`;
-  } else {
-    feedbackDiv.textContent = `❌ Sbagliato. Era ${notaCorretta}`;
-  }
-  aggiornaPunteggio();
-  setTimeout(()=>{ if(inCorso) nuovaDomanda(); }, 1000);
-}
+        // Genera la struttura delle 24 note (C3 a B4)
+        function generateKeyboardData() {
+            KEYBOARD_NOTES.length = 0;
+            let noteIndex = 0;
+            for (let octave = 3; octave <= 4; octave++) {
+                for (let i = 0; i < 12; i++) {
+                    const baseName = CHROMATIC_NOTES_EN[i];
+                    // La posizione del tasto bianco è basata sull'indice cromatico
+                    const isWhite = [0, 2, 4, 5, 7, 9, 11].includes(i);
+                    KEYBOARD_NOTES.push({
+                        name: baseName + octave, // Es: "C3"
+                        baseName: baseName,     // Es: "C"
+                        octave: octave,
+                        index: noteIndex++,
+                        isWhite: isWhite,
+                        scaleDegree: null       // 1-8 se in scala, null altrimenti
+                    });
+                }
+            }
+        }
 
-inputNota.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && inCorso) controllaRisposta(); });
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
 
-startStopBtn.addEventListener('click', ()=>{
-  if(inCorso){
-    inCorso=false;
-    grado=null;
-    gradoDiv.textContent='';
-    feedbackDiv.textContent='';
-    tempoRisposta=0; mediaTempo=0; corrette=0; totali=0;
-    startStopBtn.textContent='Start'; startStopBtn.className='start-btn';
-  } else {
-    inCorso=true;
-    startStopBtn.textContent='Stop'; startStopBtn.className='stop-btn';
-    nuovaDomanda();
-  }
-});
+        // Restituisce il nome della nota EN (es. "F#") per un dato grado (1-8)
+        function getDegreeNote(degree) {
+            if (!degree || degree < 1 || degree > 8) return null;
+            // Gradi 1-7 usano l'array notes
+            if (degree <= 7) {
+                return state.currentKey.notes[degree - 1]; 
+            }
+            // Grado 8 è la Tonica (Grado 1)
+            if (degree === 8) {
+                 return state.currentKey.notes[0]; 
+            }
+            return null;
+        }
 
-mostraScalaBtn.addEventListener('click', ()=>{
-  if(scalaContainer.style.display==='none'){
-    scalaContainer.innerHTML='';
-    MAJOR_SCALES[tonalita].forEach((nota,i)=>{
-      const div=document.createElement('div');
-      div.className='nota'; div.textContent=`${i+1}: ${nota}`;
-      scalaContainer.appendChild(div);
-    });
-    scalaContainer.style.display='flex';
-    mostraScalaBtn.textContent='Nascondi scala';
-  } else {
-    scalaContainer.style.display='none';
-    mostraScalaBtn.textContent='Mostra scala';
-  }
-});
-</script>
+        // --- Logica di Rendering e Colorazione ---
+
+        function updateKeyboardColoring() {
+            const selectedKey = state.currentKey;
+            
+            // 1. Prep: Ottieni le 7 note della scala (normalizzate) e resetta i gradi
+            const scaleNotes = selectedKey.notes.map(note => normalizeNote(note));
+            KEYBOARD_NOTES.forEach(n => n.scaleDegree = null);
+
+            // 2. Trova la tonica normalizzata (es. "G" per Sol Maggiore)
+            const normalizedTonic = normalizeNote(selectedKey.tonic);
+            let currentScaleNoteIndex = 0; // Indice per l'array scaleNotes (0 a 6)
+            let currentDegree = 1; // Grado corrente (1 a 8)
+            
+            // 3. Mappatura Sequenziale della Scala sulla Tastiera (C3-B4)
+            for (let i = 0; i < KEYBOARD_NOTES.length; i++) {
+                const noteOnKeyboard = KEYBOARD_NOTES[i];
+                const normalizedKeyboardNote = normalizeNote(noteOnKeyboard.baseName);
+                
+                // --- Step 3a: START: Identifica G3 (o la Tonica nell'ottava 3) ---
+                // Se non abbiamo ancora iniziato (currentDegree è 1) e non siamo sulla tonica, salta.
+                // La tonica può essere in C3 o C4, ma iniziamo sempre dalla tonica più bassa (octave 3) per il grado 1.
+                if (currentDegree === 1 && (normalizedKeyboardNote !== normalizedTonic || noteOnKeyboard.octave !== 3)) {
+                    continue; 
+                }
+                
+                // --- Step 3b: Core Mapping Logic ---
+                // Applica i gradi in sequenza solo se la nota della tastiera corrisponde alla nota richiesta dalla scala
+                if (currentDegree > 0 && currentDegree <= 8) {
+                    let requiredScaleNote;
+                    if (currentDegree <= 7) {
+                        requiredScaleNote = scaleNotes[currentScaleNoteIndex];
+                    } else {
+                        // Grado 8: Deve essere la tonica (indice 0)
+                        requiredScaleNote = scaleNotes[0];
+                    }
+                    
+                    if (normalizedKeyboardNote === requiredScaleNote) {
+                        // Trovata la nota successiva della scala sulla tastiera
+                        noteOnKeyboard.scaleDegree = currentDegree;
+                        
+                        currentDegree++;
+                        currentScaleNoteIndex++;
+                        
+                        // Resetta l'indice per il Grado 8 (che usa l'ottava superiore)
+                        if (currentScaleNoteIndex >= scaleNotes.length) {
+                             currentScaleNoteIndex = 0; // Torna all'indice 0 (tonica)
+                        }
+                        
+                        // Break quando abbiamo assegnato il Grado 8
+                        if (currentDegree > 8) {
+                            break; 
+                        }
+                    }
+                }
+            }
+            
+            // 4. Applica le classi CSS e i numeri di grado
+            KEYBOARD_NOTES.forEach((note) => {
+                const keyElement = document.getElementById(`key-${note.name}`);
+                if (!keyElement) return;
+
+                // Rimuovi tutte le classi di colore/stato prima di riapplicarle
+                keyElement.classList.remove('white-out-scale', 'white-in-scale', 
+                                            'black-out-scale', 'black-in-scale', 'key-active');
+                                            
+                // Il grado viene mostrato solo se la nota fa parte della scala
+                // Usa '8' per il grado 8, altrimenti il grado 1-7
+                const degreeText = note.scaleDegree ? (note.scaleDegree === 8 ? '8' : note.scaleDegree) : '';
+                keyElement.innerHTML = degreeText ? `<span>${degreeText}</span>` : ''; 
+
+                const isInsideActiveScale = note.scaleDegree !== null;
+
+                if (isInsideActiveScale) {
+                    // Tasto in scala
+                    if (note.isWhite) {
+                        keyElement.classList.add('white-in-scale');
+                    } else {
+                        // Tasto nero in scala (Nero Puro)
+                        keyElement.classList.add('black-in-scale');
+                    }
+                } else {
+                    // Tasto fuori scala
+                    if (note.isWhite) {
+                        keyElement.classList.add('white-out-scale');
+                    } else {
+                        // Tasto nero fuori scala (Grigio Scuro)
+                        keyElement.classList.add('black-out-scale');
+                    }
+                }
+            });
+            
+            // Aggiorna anche il display del nome della scala
+            updateScaleDisplay();
+        }
+
+        function renderKeyboard() {
+            generateKeyboardData();
+            const keyboardContainer = document.getElementById('piano-keyboard');
+            keyboardContainer.innerHTML = '';
+
+            const WHITE_KEY_WIDTH = 100 / 14; 
+            const BLACK_KEY_HALF_WIDTH = 4.5 / 2;
+            
+            // Indici cromatici dei tasti neri [1, 3, 6, 8, 10]
+            const BLACK_KEY_CHROMATIC_INDICES = [1, 3, 6, 8, 10]; 
+            
+            KEYBOARD_NOTES.forEach((note, i) => {
+                const keyElement = document.createElement('div');
+                keyElement.id = `key-${note.name}`;
+
+                if (note.isWhite) {
+                    // Tasti Bianchi
+                    keyElement.classList.add('white-key', 'flex', 'justify-center', 'items-end', 'font-bold');
+                    keyboardContainer.appendChild(keyElement);
+                } else {
+                    // Tasti Neri 
+                    const offsetIndex = i % 12; // Indice cromatico 0-11
+                    
+                    if (BLACK_KEY_CHROMATIC_INDICES.includes(offsetIndex)) {
+                        
+                        let whiteIndexBeforeBlack;
+                        if (offsetIndex === 1) whiteIndexBeforeBlack = 0; 
+                        else if (offsetIndex === 3) whiteIndexBeforeBlack = 1; 
+                        else if (offsetIndex === 6) whiteIndexBeforeBlack = 3; 
+                        else if (offsetIndex === 8) whiteIndexBeforeBlack = 4; 
+                        else if (offsetIndex === 10) whiteIndexBeforeBlack = 5; 
+                        
+                        // Aggiungiamo 7 per la seconda ottava (C4)
+                        if (note.octave === 4) {
+                             whiteIndexBeforeBlack += 7;
+                        }
+
+                        // Calcola la posizione 'left' in percentuale
+                        let leftPosition = (whiteIndexBeforeBlack + 1) * WHITE_KEY_WIDTH - BLACK_KEY_HALF_WIDTH;
+                        
+                        keyElement.classList.add('black-key');
+                        keyElement.style.left = `${leftPosition}%`; 
+                        keyboardContainer.appendChild(keyElement);
+                    }
+                }
+            });
+
+            updateKeyboardColoring();
+        }
+
+        // --- Logica di Training e Timer ---
+
+        function generateNewQueue() {
+            // Include i gradi da 1 a 8
+            state.degreeQueue = shuffle([1, 2, 3, 4, 5, 6, 7, 8]);
+            document.getElementById('status-message').textContent = `Nuovo ciclo per ${state.currentKeyName} avviato. Gradi rimanenti: 8.`;
+        }
+
+        function advanceSequence() {
+            // 1. Rimuovi l'illuminazione del tasto precedente
+            if (state.currentDegree) {
+                const noteNameEN = getDegreeNote(state.currentDegree);
+                
+                // Trova il tasto corrispondente. Non possiamo usare solo scaleDegree perché 1 e 8 sono la stessa nota.
+                // Dobbiamo cercare il tasto con il grado corretto E che sia nell'ottava giusta.
+                let noteElement;
+                if (state.currentDegree === 8) {
+                     // Il grado 8 si trova nell'ottava 4
+                     noteElement = KEYBOARD_NOTES.find(n => n.scaleDegree === 8);
+                } else if (state.currentDegree === 1) {
+                     // Il grado 1 si trova nell'ottava 3
+                     noteElement = KEYBOARD_NOTES.find(n => n.scaleDegree === 1);
+                } else {
+                     // Gradi 2-7 si trovano nell'ottava 3 o 4
+                     noteElement = KEYBOARD_NOTES.find(n => n.scaleDegree === state.currentDegree);
+                }
+
+                if (noteElement) {
+                    document.getElementById(`key-${noteElement.name}`).classList.remove('key-active');
+                }
+            }
+
+            // 2. Avanza al prossimo grado
+            if (state.degreeQueue.length === 0) {
+                generateNewQueue();
+            }
+
+            state.currentDegree = state.degreeQueue.shift();
+            const noteNameEN = getDegreeNote(state.currentDegree);
+            const noteNameIT = toItalianNote(noteNameEN);
+
+            document.getElementById('degree-display').textContent = state.currentDegree;
+            document.getElementById('note-display').textContent = '';
+            document.getElementById('status-message').textContent = `Grado: ${state.currentDegree}. Tonalità: ${state.currentKeyName}. Gradi rimanenti: ${state.degreeQueue.length}.`;
+            
+            // Resetta il tempo rimanente per il nuovo ciclo
+            state.timeRemaining = state.timerDuration;
+        }
+
+        function updateTimer() {
+            const timerContainer = document.getElementById('timer-indicator-container');
+            const noteDisplay = document.getElementById('note-display');
+            const totalDuration = state.timerDuration;
+            
+            state.timeRemaining = Math.max(0, state.timeRemaining - 0.1); 
+
+            const progress = 100 - (state.timeRemaining / totalDuration) * 100;
+            timerContainer.style.setProperty('--progress', `${progress}%`);
+
+            const timePassed = totalDuration - state.timeRemaining;
+
+            // Logica di Rivelazione della Nota (dopo 2/3 del tempo)
+            if (timePassed >= totalDuration * (2 / 3) && noteDisplay.textContent === '') {
+                const noteNameEN = getDegreeNote(state.currentDegree);
+                const noteNameIT = toItalianNote(noteNameEN);
+                
+                // Aggiungi l'ottava al display solo se Grado 8
+                const octaveSuffix = state.currentDegree === 8 ? ' (Ottava)' : '';
+                noteDisplay.textContent = noteNameIT + octaveSuffix;
+
+                // Trova il tasto ATTIVO (quello che ha il grado corrente assegnato)
+                let noteToIlluminate;
+                if (state.currentDegree === 8) {
+                    // Il grado 8 si trova nell'ottava 4
+                    noteToIlluminate = KEYBOARD_NOTES.find(n => n.scaleDegree === 8);
+                } else if (state.currentDegree === 1) {
+                    // Il grado 1 si trova nell'ottava 3
+                    noteToIlluminate = KEYBOARD_NOTES.find(n => n.scaleDegree === 1);
+                } else {
+                    // Gradi 2-7 si trovano nell'ottava 3 o 4
+                    noteToIlluminate = KEYBOARD_NOTES.find(n => n.scaleDegree === state.currentDegree);
+                }
+                
+                if (noteToIlluminate) {
+                    document.getElementById(`key-${noteToIlluminate.name}`).classList.add('key-active');
+                }
+            }
+
+            // Quando il timer scade, avanza alla prossima sequenza
+            if (state.timeRemaining <= 0.01) {
+                timerContainer.style.setProperty('--progress', `0%`);
+                advanceSequence(); 
+                return;
+            }
+        }
+
+        function startTimer() {
+            if (state.isRunning) return;
+
+            if (state.currentDegree === null) {
+                advanceSequence();
+            }
+
+            state.isRunning = true;
+            document.getElementById('start-stop-btn').textContent = "Ferma Allenamento";
+            document.getElementById('start-stop-btn').classList.replace('bg-green-600', 'bg-red-600');
+            document.getElementById('start-stop-btn').classList.replace('shadow-green-900/50', 'shadow-red-900/50');
+            document.getElementById('reset-btn').disabled = true;
+
+            document.getElementById('key-select').disabled = true;
+            document.getElementById('timer-duration').disabled = true;
+
+            // Imposta l'intervallo solo all'avvio e lo mantiene attivo
+            state.timer = setInterval(updateTimer, 100);
+        }
+
+        function stopTimer() {
+            if (!state.isRunning) return;
+
+            clearInterval(state.timer); // Ferma l'intervallo
+            state.isRunning = false;
+            document.getElementById('start-stop-btn').textContent = "Avvia Allenamento";
+            document.getElementById('start-stop-btn').classList.replace('bg-red-600', 'bg-green-600');
+            document.getElementById('start-stop-btn').classList.replace('shadow-red-900/50', 'shadow-green-900/50');
+            document.getElementById('reset-btn').disabled = false;
+
+            // Rimuovi l'illuminazione attiva alla pausa
+            if (state.currentDegree) {
+                // Devo cercare il tasto illuminato (1 o 8 a seconda del contesto)
+                let noteElement;
+                if (state.currentDegree === 8) {
+                     noteElement = KEYBOARD_NOTES.find(n => n.scaleDegree === 8);
+                } else if (state.currentDegree === 1) {
+                     noteElement = KEYBOARD_NOTES.find(n => n.scaleDegree === 1);
+                } else {
+                     noteElement = KEYBOARD_NOTES.find(n => n.scaleDegree === state.currentDegree);
+                }
+
+                if (noteElement) {
+                    document.getElementById(`key-${noteElement.name}`).classList.remove('key-active');
+                }
+            }
+
+            document.getElementById('key-select').disabled = false;
+            document.getElementById('timer-duration').disabled = false;
+
+            document.getElementById('note-display').textContent = 'Pausa';
+            document.getElementById('status-message').textContent = 'Allenamento in pausa. Puoi cambiare impostazioni o premere Avvia per ripartire.';
+        }
+
+        function resetCycle() {
+            stopTimer(); 
+            state.degreeQueue = [];
+            state.currentDegree = null;
+            state.timeRemaining = state.timerDuration;
+            document.getElementById('degree-display').textContent = '?';
+            document.getElementById('note-display').textContent = '';
+            document.getElementById('timer-indicator-container').style.setProperty('--progress', `0%`);
+            document.getElementById('reset-btn').disabled = true;
+            document.getElementById('status-message').textContent = 'Ciclo resettato. Premi Avvia per iniziare un nuovo allenamento.';
+            updateKeyboardColoring();
+        }
+
+        // --- Funzione di Setup Principale (chiamata da Firebase dopo l'inizializzazione) ---
+
+        window.setupApp = function() {
+            // 1. Popola il menu a tendina delle tonalità
+            const keySelect = document.getElementById('key-select');
+            Object.keys(MAJOR_KEYS).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = key;
+                keySelect.appendChild(option);
+            });
+
+            keySelect.value = "Do Maggiore";
+            state.currentKey = MAJOR_KEYS["Do Maggiore"];
+            state.currentKeyName = "Do Maggiore";
+
+            // 2. Renderizza la tastiera iniziale
+            renderKeyboard();
+            // Aggiorna subito il display della scala
+            updateScaleDisplay();
+            resetCycle();
+
+            // 3. Gestione Eventi
+            document.getElementById('start-stop-btn').addEventListener('click', () => {
+                state.isRunning ? stopTimer() : startTimer();
+            });
+
+            document.getElementById('reset-btn').addEventListener('click', resetCycle);
+
+            document.getElementById('key-select').addEventListener('change', (e) => {
+                state.currentKeyName = e.target.value;
+                state.currentKey = MAJOR_KEYS[e.target.value];
+                resetCycle();
+                // updateKeyboardColoring viene chiamata da resetCycle
+            });
+
+            document.getElementById('timer-duration').addEventListener('input', (e) => {
+                const newDuration = parseInt(e.target.value);
+                if (newDuration > 0) {
+                    state.timerDuration = newDuration;
+                    if (!state.isRunning) { state.timeRemaining = newDuration; }
+                }
+            });
+        }
+
+        // Avvia l'inizializzazione di Firebase e poi l'app.
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof window.initializeFirebase === 'function') {
+                window.initializeFirebase();
+            } else {
+                // Fallback nel caso in cui il modulo Firebase non si carichi correttamente
+                window.setupApp();
+            }
+        });
+    </script>
 </body>
 </html>
